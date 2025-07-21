@@ -10,7 +10,7 @@ const int led3 = 19;
 WebServer server(80);
 
 // Access Point credentials
-const char* ssid = "NeonLux-Control";
+const char* ssid = "Ali-Light-Control";
 const char* password = "lighting123";  // Must be at least 8 characters
 
 // Modern HTML dashboard with glassmorphism design
@@ -20,7 +20,7 @@ String webpage = R"=====(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NeonLux | Smart Lighting Control</title>
+  <title>Ali | Intelligent Lighting Control</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
@@ -419,7 +419,7 @@ String webpage = R"=====(
           <i class="fas fa-lightbulb"></i>
         </div>
         <div class="brand-text">
-          <h1>NeonLux</h1>
+          <h1>Ali Intelligent Lighting System</h1>
           <p>Smart Lighting Control System</p>
         </div>
       </div>
@@ -546,7 +546,7 @@ String webpage = R"=====(
             </div>
             <div class="activity-details">
               <h4>System Activated</h4>
-              <p>NeonLux control initialized</p>
+              <p>Ali control initialized</p>
             </div>
             <div class="activity-time">Just now</div>
           </div>
@@ -565,7 +565,7 @@ String webpage = R"=====(
     </div>
     
     <footer>
-      <p>© 2023 NeonLux Smart Lighting | Team 3</p>
+      <p>© 2023 Ali Intelligent Lighting System | Team 3</p>
     </footer>
   </div>
   
