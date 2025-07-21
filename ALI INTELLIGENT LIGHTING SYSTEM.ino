@@ -1,0 +1,654 @@
+#include <WiFi.h>
+#include <WebServer.h>
+
+// LED pins
+const int led1 = 5;
+const int led2 = 18;
+const int led3 = 19;
+
+// Web server on port 80
+WebServer server(80);
+
+// Access Point credentials
+const char* ssid = "NeonLux-Control";
+const char* password = "lighting123";  // Must be at least 8 characters
+
+// Modern HTML dashboard with glassmorphism design
+String webpage = R"=====( 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NeonLux | Smart Lighting Control</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #6C4DF6;
+      --primary-dark: #5A3BE8;
+      --secondary: #FF7D59;
+      --dark: #1A1C2A;
+      --darker: #12141F;
+      --light: #F6F8FF;
+      --gray: #A1A8C3;
+      --success: #4ADE80;
+      --danger: #F75555;
+      --glass: rgba(255, 255, 255, 0.08);
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
+      min-height: 100vh;
+      color: var(--light);
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      padding: 20px;
+      background: var(--glass);
+      backdrop-filter: blur(12px);
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    }
+    
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .logo {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .logo i {
+      color: white;
+      font-size: 18px;
+    }
+    
+    .brand-text h1 {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+    
+    .brand-text p {
+      font-size: 12px;
+      color: var(--gray);
+      font-weight: 400;
+    }
+    
+    .status-badge {
+      background: rgba(74, 222, 128, 0.15);
+      color: var(--success);
+      padding: 8px 16px;
+      border-radius: 50px;
+      font-size: 14px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .status-badge i {
+      font-size: 12px;
+    }
+    
+    .main-content {
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 20px;
+    }
+    
+    .lights-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+    
+    .light-card {
+      background: var(--glass);
+      backdrop-filter: blur(12px);
+      border-radius: 16px;
+      padding: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      transition: all 0.3s ease;
+    }
+    
+    .light-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    .light-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    
+    .light-icon {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, rgba(108, 77, 246, 0.2) 0%, rgba(90, 59, 232, 0.2) 100%);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .light-icon i {
+      color: var(--primary);
+      font-size: 20px;
+    }
+    
+    .light-name {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    
+    .light-location {
+      font-size: 12px;
+      color: var(--gray);
+      font-weight: 400;
+    }
+    
+    .light-status {
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 50px;
+      background: rgba(247, 85, 85, 0.15);
+      color: var(--danger);
+    }
+    
+    .light-status.on {
+      background: rgba(74, 222, 128, 0.15);
+      color: var(--success);
+    }
+    
+    .light-controls {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+    }
+    
+    .btn {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    
+    .btn-on {
+      background: var(--primary);
+      color: white;
+    }
+    
+    .btn-on:hover {
+      background: var(--primary-dark);
+      transform: translateY(-2px);
+    }
+    
+    .btn-off {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--gray);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .btn-off:hover {
+      background: rgba(255, 255, 255, 0.1);
+      transform: translateY(-2px);
+    }
+    
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    
+    .panel {
+      background: var(--glass);
+      backdrop-filter: blur(12px);
+      border-radius: 16px;
+      padding: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+    
+    .panel-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .panel-title i {
+      color: var(--primary);
+    }
+    
+    .energy-meter {
+      width: 100%;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 50px;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+    
+    .energy-progress {
+      height: 100%;
+      width: 35%;
+      background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+      border-radius: 50px;
+    }
+    
+    .energy-stats {
+      display: flex;
+      justify-content: space-between;
+    }
+    
+    .energy-stat {
+      font-size: 12px;
+      color: var(--gray);
+    }
+    
+    .energy-stat span {
+      font-weight: 600;
+      color: white;
+    }
+    
+    .scene-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border-radius: 12px;
+      margin-bottom: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .scene-card:last-child {
+      margin-bottom: 0;
+    }
+    
+    .scene-card:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+    
+    .scene-icon {
+      width: 36px;
+      height: 36px;
+      background: rgba(108, 77, 246, 0.1);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .scene-icon i {
+      color: var(--primary);
+      font-size: 14px;
+    }
+    
+    .scene-info h4 {
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 2px;
+    }
+    
+    .scene-info p {
+      font-size: 12px;
+      color: var(--gray);
+    }
+    
+    .activity-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .activity-item:last-child {
+      border-bottom: none;
+    }
+    
+    .activity-icon {
+      width: 32px;
+      height: 32px;
+      background: rgba(108, 77, 246, 0.1);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .activity-icon i {
+      color: var(--primary);
+      font-size: 12px;
+    }
+    
+    .activity-details h4 {
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 2px;
+    }
+    
+    .activity-details p {
+      font-size: 11px;
+      color: var(--gray);
+    }
+    
+    .activity-time {
+      font-size: 10px;
+      color: var(--gray);
+      margin-left: auto;
+    }
+    
+    footer {
+      text-align: center;
+      margin-top: 40px;
+      padding: 20px;
+      font-size: 12px;
+      color: var(--gray);
+    }
+    
+    @media (max-width: 1024px) {
+      .main-content {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+      }
+      
+      .lights-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand">
+        <div class="logo">
+          <i class="fas fa-lightbulb"></i>
+        </div>
+        <div class="brand-text">
+          <h1>NeonLux</h1>
+          <p>Smart Lighting Control System</p>
+        </div>
+      </div>
+      <div class="status-badge">
+        <i class="fas fa-circle"></i>
+        <span>System Online</span>
+      </div>
+    </header>
+    
+    <div class="main-content">
+      <div class="lights-grid">
+        <div class="light-card">
+          <div class="light-header">
+            <div>
+              <h3 class="light-name">Ambient Ceiling</h3>
+              <p class="light-location">Living Room</p>
+            </div>
+            <div class="light-icon">
+              <i class="fas fa-lightbulb"></i>
+            </div>
+          </div>
+          <span class="light-status off">OFF</span>
+          <div class="light-controls">
+            <button class="btn btn-on" onclick="controlLight('led1', 'on')">
+              <i class="fas fa-power-off"></i> Turn On
+            </button>
+            <button class="btn btn-off" onclick="controlLight('led1', 'off')">
+              <i class="fas fa-moon"></i> Off
+            </button>
+          </div>
+        </div>
+        
+        <div class="light-card">
+          <div class="light-header">
+            <div>
+              <h3 class="light-name">Task Lighting</h3>
+              <p class="light-location">Kitchen</p>
+            </div>
+            <div class="light-icon">
+              <i class="fas fa-utensils"></i>
+            </div>
+          </div>
+          <span class="light-status off">OFF</span>
+          <div class="light-controls">
+            <button class="btn btn-on" onclick="controlLight('led2', 'on')">
+              <i class="fas fa-power-off"></i> Turn On
+            </button>
+            <button class="btn btn-off" onclick="controlLight('led2', 'off')">
+              <i class="fas fa-moon"></i> Off
+            </button>
+          </div>
+        </div>
+        
+        <div class="light-card">
+          <div class="light-header">
+            <div>
+              <h3 class="light-name">Mood Lighting</h3>
+              <p class="light-location">Bedroom</p>
+            </div>
+            <div class="light-icon">
+              <i class="fas fa-bed"></i>
+            </div>
+          </div>
+          <span class="light-status off">OFF</span>
+          <div class="light-controls">
+            <button class="btn btn-on" onclick="controlLight('led3', 'on')">
+              <i class="fas fa-power-off"></i> Turn On
+            </button>
+            <button class="btn btn-off" onclick="controlLight('led3', 'off')">
+              <i class="fas fa-moon"></i> Off
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <div class="sidebar">
+        <div class="panel">
+          <h3 class="panel-title"><i class="fas fa-bolt"></i> Energy Usage</h3>
+          <div class="energy-meter">
+            <div class="energy-progress"></div>
+          </div>
+          <div class="energy-stats">
+            <div class="energy-stat">Current: <span>35W</span></div>
+            <div class="energy-stat">Today: <span>0.5kWh</span></div>
+          </div>
+        </div>
+        
+        <div class="panel">
+          <h3 class="panel-title"><i class="fas fa-palette"></i> Lighting Scenes</h3>
+          <div class="scene-card">
+            <div class="scene-icon">
+              <i class="fas fa-sun"></i>
+            </div>
+            <div class="scene-info">
+              <h4>Daylight</h4>
+              <p>Full brightness for daytime</p>
+            </div>
+          </div>
+          <div class="scene-card">
+            <div class="scene-icon">
+              <i class="fas fa-moon"></i>
+            </div>
+            <div class="scene-info">
+              <h4>Evening</h4>
+              <p>Warm dimmed lighting</p>
+            </div>
+          </div>
+          <div class="scene-card">
+            <div class="scene-icon">
+              <i class="fas fa-film"></i>
+            </div>
+            <div class="scene-info">
+              <h4>Movie Night</h4>
+              <p>Low ambient lighting</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="panel">
+          <h3 class="panel-title"><i class="fas fa-history"></i> Recent Activity</h3>
+          <div class="activity-item">
+            <div class="activity-icon">
+              <i class="fas fa-plug"></i>
+            </div>
+            <div class="activity-details">
+              <h4>System Activated</h4>
+              <p>NeonLux control initialized</p>
+            </div>
+            <div class="activity-time">Just now</div>
+          </div>
+          <div class="activity-item">
+            <div class="activity-icon">
+              <i class="fas fa-wifi"></i>
+            </div>
+            <div class="activity-details">
+              <h4>Network Connected</h4>
+              <p>Access point active</p>
+            </div>
+            <div class="activity-time">1 min ago</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <footer>
+      <p>© 2023 NeonLux Smart Lighting | Team 3</p>
+    </footer>
+  </div>
+  
+  <script>
+    function controlLight(led, action) {
+      fetch(`/${led}/${action}`)
+        .then(response => response.text())
+        .then(data => {
+          console.log(data);
+          // Update status indicator
+          const statusElement = document.querySelector(`button[onclick="controlLight('${led}', '${action}')"]`)
+            .closest('.light-card')
+            .querySelector('.light-status');
+            
+          if (action === 'on') {
+            statusElement.textContent = 'ON';
+            statusElement.classList.remove('off');
+            statusElement.classList.add('on');
+          } else {
+            statusElement.textContent = 'OFF';
+            statusElement.classList.remove('on');
+            statusElement.classList.add('off');
+          }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+  </script>
+</body>
+</html>
+)=====";
+
+void setup() {
+  Serial.begin(115200);
+
+  // Set LED pins as outputs
+  pinMode(led1, OUTPUT);
+  pinMode(led2, OUTPUT);
+  pinMode(led3, OUTPUT);
+
+  // Start the Access Point
+  WiFi.softAP(ssid, password);
+  IPAddress IP = WiFi.softAPIP();
+  Serial.print("Access Point started. Connect to Wi-Fi '");
+  Serial.print(ssid);
+  Serial.print("' and visit http://");
+  Serial.println(IP);
+
+  // Define routes
+  server.on("/", []() {
+    server.send(200, "text/html", webpage);
+  });
+
+  server.on("/led1/on", []() { 
+    digitalWrite(led1, HIGH); 
+    server.send(200, "text/plain", "Living Room Light turned ON"); 
+  });
+  server.on("/led1/off", []() { 
+    digitalWrite(led1, LOW); 
+    server.send(200, "text/plain", "Living Room Light turned OFF"); 
+  });
+
+  server.on("/led2/on", []() { 
+    digitalWrite(led2, HIGH); 
+    server.send(200, "text/plain", "Kitchen Light turned ON"); 
+  });
+  server.on("/led2/off", []() { 
+    digitalWrite(led2, LOW); 
+    server.send(200, "text/plain", "Kitchen Light turned OFF"); 
+  });
+
+  server.on("/led3/on", []() { 
+    digitalWrite(led3, HIGH); 
+    server.send(200, "text/plain", "Bedroom Light turned ON"); 
+  });
+  server.on("/led3/off", []() { 
+    digitalWrite(led3, LOW); 
+    server.send(200, "text/plain", "Bedroom Light turned OFF"); 
+  });
+
+  server.begin();
+  Serial.println("Web server started!");
+}
+
+void loop() {
+  server.handleClient();
+}
